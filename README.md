@@ -32,9 +32,11 @@ canopy update PATH DESC                  # set one description
 
 ## Environment
 
-- `MINIMAX_API_KEY` — fetched at runtime via `bws` (id from `BWS_MINIMAX_SECRET_ID`, default `776360fe-5820-424e-99e9-b474005d763b`). Pattern: `source ~/.config/bws/env`.
+- `MINIMAX_API_KEY` — fetched at runtime via `bws` using `--bws-secret <UUID>` (default: `$BWS_MINIMAX_SECRET_ID` env var). Pattern: `source ~/.config/bws/env` then `export BWS_MINIMAX_SECRET_ID=<your-uuid>`.
 - `HINDSIGHT_URL` — default `http://localhost:8888`
 - `HINDSIGHT_BANK` — default `coding-agent-stack`
+
+The `bws` CLI must be on `$PATH` (`brew install bws` if missing).
 
 ## License
 
