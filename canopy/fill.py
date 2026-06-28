@@ -19,7 +19,9 @@ from canopy import bws, llm
 # Hard caps mirroring the upstream reference.
 _MAX_DESC_LEN = 200
 _CONTEXT_FILE_TRUNC = 3000
-_CONTEXT_TOTAL_TRUNC = 8000
+# Default 20 KB total; canopy.cli passes the same value explicitly to
+# canopy.context.discover_context so this is the fallback if called directly.
+_CONTEXT_TOTAL_TRUNC = 20_000
 
 
 def _build_context(ctx_files: dict[str, str]) -> str:

@@ -163,6 +163,7 @@ DEFAULT_HINDSIGHT_URL = "http://localhost:8888"
 DEFAULT_HINDSIGHT_BANK = "coding-agent-stack"
 DEFAULT_BATCH = 50
 DEFAULT_MAX_DESC_WORDS = 15
+DEFAULT_CONTEXT_TOTAL_KB = 20
 
 
 def cmd_fill(args: argparse.Namespace) -> int:
@@ -209,15 +210,15 @@ def cmd_fill(args: argparse.Namespace) -> int:
     if extra_paths:
         print(f"removed paths (will be pruned): {len(extra_paths)}")
 
-    # Build context from README, AGENTS.md, package manifest.
-    ctx_files: dict[str, str] = {}
-    for candidate in ("README.md", "AGENTS.md", "CLAUDE.md", "package.json", "pyproject.toml"):
-        p = root / candidate
-        if p.exists():
-            try:
-                ctx_files[candidate] = p.read_text(errors="ignore")
-            except OSError:
-                pass
+    # Build context: discover files automatically (Phase 2) instead of a
+    # hardcoded tuple. Honors .gitignore + STANDARD_EXCLUDES, finds
+    # root files (README*, etc.) + docs/**/*.md + module-dir READMEs.
+    from canopy.context import discover_context
+
+    ctx_files = discover_context(root, total_cap=DEFAULT_CONTEXT_TOTAL_KB * 1024)
+    if ctx_files:
+        print(f"context: {len(ctx_files)} file(s) "
+              f"({sum(len(v) for v in ctx_files.values())} chars)")
 
     if args.dry_run:
         print("(dry-run) would call LLM and rewrite YAML")
