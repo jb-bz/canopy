@@ -1,0 +1,83 @@
+# ─── Python ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ─── Virtual environments ───────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ─── Tool caches ────────────────────────────────────────────────────
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.cache/
+.pyright/
+
+# ─── canopy runtime artifacts ───────────────────────────────────────
+# Graph database lives under .canopy/ — never committed
+.canopy/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# ─── Secrets / credentials (belt + suspenders — gitleaks is the
+#      primary defense, this is the second line) ────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# ─── OS / editor ────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.directory
+
+# ─── Node (in case tree-sitter-typescript tests pull in node) ───────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─── Project docs we don't want to expose ──────────────────────────
+# (None yet — docs/ is intentionally committed for transparency)

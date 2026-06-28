@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Pre-commit hook: block commits that contain secrets.
+# Install: cp scripts/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+# Or use:  pip install pre-commit && pre-commit install  (after adding .pre-commit-config.yaml)
+set -euo pipefail
+
+# Prefer gitleaks if installed (richer rules); fall back to a small grep.
+if command -v gitleaks >/dev/null 2>&1; then
+    gitleaks protect --staged --redact --no-banner
+else
+    # Minimal fallback — catch the common tokens.
+    if git diff --cached --diff-filter=ACM --text | grep -E '(ghp_[A-Za-z0-9]{30,}|sk-ant-[A-Za-z0-9-]{20,}|sk-[A-Za-z0-9]{20,}|BWS_ACCESS_TOKEN=|\bMINIMAX_API_KEY=[A-Za-z0-9])' >/dev/null 2>&1; then
+        echo "pre-commit: secret-like pattern found in staged changes. Refusing to commit." >&2
+        echo "If this is a false positive, use 'git commit --no-verify' and explain in the message." >&2
+        exit 1
+    fi
+fi
