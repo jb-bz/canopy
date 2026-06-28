@@ -1,12 +1,28 @@
 # canopy
 
 <p align="center">
-  <img src="docs/assets/canopy-banner.png" alt="canopy logo" width="600">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/canopy-banner.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/canopy-banner.svg">
+    <img src="docs/assets/canopy-banner.svg" alt="canopy logo" width="600">
+  </picture>
 </p>
+
+<style>
+  /* Prefer GitHub Mono everywhere in this README. Falls back to a sane
+     monospace stack on systems where GitHub Mono isn't installed. */
+  :root {
+    --canopy-font-mono: "GitHub Mono", "JetBrains Mono", "SF Mono", ui-monospace,
+                        "Cascadia Code", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  body, code, pre, kbd, samp {
+    font-family: var(--canopy-font-mono);
+  }
+</style>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-89%20passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-100%20passing-brightgreen.svg)](tests/)
 
 MIT-licensed Python clone of [DandyLyons/treedocs](https://github.com/DandyLyons/treedocs): a CLI tool that maintains a YAML map of a repository's file tree with one short human/LLM-written description per path, with SHA256 drift detection and a `--check` mode for CI.
 
