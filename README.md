@@ -1,8 +1,12 @@
 # canopy
 
+<p align="center">
+  <img src="docs/assets/canopy-banner.png" alt="canopy logo" width="600">
+</p>
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-17%20passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-89%20passing-brightgreen.svg)](tests/)
 
 MIT-licensed Python clone of [DandyLyons/treedocs](https://github.com/DandyLyons/treedocs): a CLI tool that maintains a YAML map of a repository's file tree with one short human/LLM-written description per path, with SHA256 drift detection and a `--check` mode for CI.
 

@@ -112,18 +112,16 @@ def test_interactive_accepts_empty_to_use_default() -> None:
 # ─── output contract ───────────────────────────────────────────────────
 
 
-def test_default_provider_is_anthropic() -> None:
-    """Per the design decision: default = Anthropic Messages."""
+def test_default_provider_is_openrouter() -> None:
+    """Per the user's stated preference: default = OpenRouter."""
     parser = setup.build_parser()
     args = parser.parse_args(["--interactive"])
-    # Default not set in argparse until interactive loop runs; verify via the
-    # DEFAULT_PROVIDER constant instead.
-    assert setup.DEFAULT_PROVIDER == "anthropic"
+    assert setup.DEFAULT_PROVIDER == "openrouter"
 
 
-def test_default_model_for_anthropic_is_minimax() -> None:
-    """Per the design decision: default model for Anthropic = MiniMax-M3."""
-    assert setup.DEFAULT_MODEL_ANTHROPIC == "MiniMax-M3"
+def test_default_model_for_openrouter_is_anthropic_claude() -> None:
+    """Per the user's preference: default OpenRouter model = anthropic/claude-3.5-sonnet."""
+    assert setup.DEFAULT_MODEL_OPENROUTER == "anthropic/claude-3.5-sonnet"
 
 
 def test_default_client_is_claude_code() -> None:

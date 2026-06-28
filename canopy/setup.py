@@ -20,21 +20,40 @@ from pathlib import Path
 
 # ─── defaults ──────────────────────────────────────────────────────────
 
-DEFAULT_PROVIDER = "anthropic"
+DEFAULT_PROVIDER = "openrouter"
+DEFAULT_MODEL_OPENROUTER = "anthropic/claude-3.5-sonnet"
 DEFAULT_MODEL_ANTHROPIC = "MiniMax-M3"
 DEFAULT_MODEL_OPENAI = "gpt-4o-mini"
+DEFAULT_MODEL_GEMINI = "gemini-2.0-flash"
+DEFAULT_MODEL_BEDROCK = "anthropic.claude-3-sonnet-20240229-v1:0"
+DEFAULT_MODEL_COHERE = "command-r-plus"
 DEFAULT_CLIENT = "claude-code"
+
+DEFAULT_BASE_URL_OPENROUTER = "https://openrouter.ai/api/v1"
 DEFAULT_BASE_URL_ANTHROPIC = "https://api.minimax.io/anthropic"
 DEFAULT_BASE_URL_OPENAI = "https://api.openai.com/v1"
+DEFAULT_BASE_URL_GEMINI = "https://generativelanguage.googleapis.com"
+DEFAULT_BASE_URL_COHERE = "https://api.cohere.com"
+# Bedrock doesn't take a base_url — region is the geographic dispatch.
 
-KNOWN_PROVIDERS = ("anthropic", "openai")
-KNOWN_PROVIDER_BASE_URLS = {
+KNOWN_PROVIDERS = ("openrouter", "anthropic", "openai", "gemini", "bedrock", "cohere")
+
+KNOWN_PROVIDER_BASE_URLS: dict[str, str | None] = {
+    "openrouter": DEFAULT_BASE_URL_OPENROUTER,
     "anthropic": DEFAULT_BASE_URL_ANTHROPIC,
     "openai": DEFAULT_BASE_URL_OPENAI,
+    "gemini": DEFAULT_BASE_URL_GEMINI,
+    "bedrock": None,  # Bedrock uses region, not base URL
+    "cohere": DEFAULT_BASE_URL_COHERE,
 }
-KNOWN_PROVIDER_DEFAULT_MODELS = {
+
+KNOWN_PROVIDER_DEFAULT_MODELS: dict[str, str] = {
+    "openrouter": DEFAULT_MODEL_OPENROUTER,
     "anthropic": DEFAULT_MODEL_ANTHROPIC,
     "openai": DEFAULT_MODEL_OPENAI,
+    "gemini": DEFAULT_MODEL_GEMINI,
+    "bedrock": DEFAULT_MODEL_BEDROCK,
+    "cohere": DEFAULT_MODEL_COHERE,
 }
 
 
@@ -84,7 +103,10 @@ def _print_setup_summary(provider: str, model: str, client: str, base_url: str, 
     sys.stdout.write("\n--- canopy setup summary ---\n")
     sys.stdout.write(f"  provider:  {provider}\n")
     sys.stdout.write(f"  model:     {model}\n")
-    sys.stdout.write(f"  base_url:  {base_url}\n")
+    if base_url and base_url != "(provider-specific)":
+        sys.stdout.write(f"  base_url:  {base_url}\n")
+    elif provider == "bedrock":
+        sys.stdout.write("  base_url:  (region-based — set --region or CANOPY_BEDROCK_REGION)\n")
     sys.stdout.write(f"  client:    {client}\n")
     sys.stdout.write(f"  api_key:   {'set' if api_key_set else '(empty — provider may not need one)'}\n\n")
 
@@ -99,7 +121,7 @@ def _run_non_interactive(args: argparse.Namespace) -> int:
     base_url = args.base_url or KNOWN_PROVIDER_BASE_URLS[provider]
     api_key = args.api_key or ""
 
-    _print_setup_summary(provider, model, args.client, base_url, bool(api_key))
+    _print_setup_summary(provider, model, args.client, base_url or "(provider-specific)", bool(api_key))
 
     client = args.client
     global_config_dir = Path(args.global_config_dir).expanduser() if args.global_config_dir else None
@@ -140,9 +162,12 @@ def _run_non_interactive(args: argparse.Namespace) -> int:
 def _run_interactive(args: argparse.Namespace) -> int:
     provider = _prompt_choice("Provider", KNOWN_PROVIDERS, DEFAULT_PROVIDER)
     default_model = KNOWN_PROVIDER_DEFAULT_MODELS[provider]
-    default_base = KNOWN_PROVIDER_BASE_URLS[provider]
+    default_base = KNOWN_PROVIDER_BASE_URLS[provider] or ""
     model = _prompt("Model", default_model)
-    base_url = _prompt("Base URL", default_base)
+    if provider == "bedrock":
+        base_url = "(region-based)"
+    else:
+        base_url = _prompt("Base URL", default_base)
     client = _prompt("MCP client (one of: known name, or any agent name for instructions)",
                      DEFAULT_CLIENT)
     api_key = _prompt("API key (leave empty for Ollama / local)", "")
