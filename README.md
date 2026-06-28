@@ -8,18 +8,6 @@
   </picture>
 </p>
 
-<style>
-  /* Prefer GitHub Mono everywhere in this README. Falls back to a sane
-     monospace stack on systems where GitHub Mono isn't installed. */
-  :root {
-    --canopy-font-mono: "GitHub Mono", "JetBrains Mono", "SF Mono", ui-monospace,
-                        "Cascadia Code", Menlo, Consolas, "Liberation Mono", monospace;
-  }
-  body, code, pre, kbd, samp {
-    font-family: var(--canopy-font-mono);
-  }
-</style>
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
 [![Tests](https://img.shields.io/badge/tests-100%20passing-brightgreen.svg)](tests/)
