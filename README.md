@@ -20,6 +20,28 @@ MIT-licensed Python clone of [DandyLyons/treedocs](https://github.com/DandyLyons
 
 The on-disk YAML is byte-compatible with upstream — same schema URL, same keys. If you have an existing `treedocs.yaml` from the Swift tool, `canopy` reads and writes it without migration.
 
+## Screenshots
+
+### `canopy fill` against itself (dogfooding)
+
+![canopy fill](docs/screenshots/06-fill.png)
+
+### Before / after `canopy show` — the YAML tree with descriptions
+
+![canopy show](docs/screenshots/03-show.png)
+
+### `canopy explore` — compact agent-friendly view
+
+![canopy explore](docs/screenshots/04-explore.png)
+
+### `canopy --help` — full CLI surface
+
+![canopy --help](docs/screenshots/01-help.png)
+
+### `canopy check` — CI mode (exit 1 on drift)
+
+![canopy check](docs/screenshots/05-check.png)
+
 ## Install
 
 ```sh

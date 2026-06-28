@@ -137,9 +137,20 @@ def cmd_update(args: argparse.Namespace) -> int:
             print(f"creating parent dir: {part}", file=sys.stderr)
             node[part] = {"_kind": "dir", "_description": ""}
         node = node[part]
-    leaf_kind = "file"
-    if parts[-1] in node and isinstance(node[parts[-1]], dict):
-        leaf_kind = node[parts[-1]].get("_kind", "file")
+    # Detect file vs dir from the actual filesystem so nested children
+    # remain walkable by `missing_descriptions`. Falls back to the existing
+    # entry's kind, then to "file".
+    fs_root = Path(args.root).resolve()
+    fs_path = fs_root / args.path
+    if fs_path.is_dir():
+        leaf_kind = "dir"
+    elif fs_path.is_file():
+        leaf_kind = "file"
+    else:
+        # Path doesn't exist on disk (e.g. virtual entry) — preserve existing kind.
+        leaf_kind = "dir"  # safer default so children stay walkable
+        if parts[-1] in node and isinstance(node[parts[-1]], dict):
+            leaf_kind = node[parts[-1]].get("_kind", "dir")
     node[parts[-1]] = {"_kind": leaf_kind, "_description": args.desc}
     data["tree"] = tree
     data["signature"] = compute_signature(paths_from_tree(tree))
