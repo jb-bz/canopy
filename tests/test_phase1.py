@@ -18,7 +18,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from canopy.bws import BwsError, fetch_secret
-from canopy.llm import LlmError, call_minimax
+from canopy.llm import call_minimax  # back-compat wrapper
+from canopy.providers import ProviderError as LlmError  # Phase 3: the new name
 from canopy.fill import fill_missing
 from canopy.hindsight import retain
 
@@ -92,14 +93,24 @@ def test_fill_missing_batches_and_merges_results(monkeypatch: pytest.MonkeyPatch
     missing = [("a.py", "file"), ("b.py", "file"), ("c.py", "file")]
     calls: list[str] = []
 
-    def fake_llm(prompt: str, **_):
+    def fake_urlopen(req, timeout=None):
+        prompt = json.loads(req.data.decode())["messages"][-1]["content"]
         calls.append(prompt)
+        resp = MagicMock()
         if "a.py" in prompt and "b.py" in prompt:
-            return '{"a.py": "alpha", "b.py": "bravo"}'
-        return '{"c.py": "charlie"}'
+            resp.read.return_value = json.dumps({
+                "content": [{"type": "text", "text": '{"a.py": "alpha", "b.py": "bravo"}'}]
+            }).encode()
+        else:
+            resp.read.return_value = json.dumps({
+                "content": [{"type": "text", "text": '{"c.py": "charlie"}'}]
+            }).encode()
+        resp.__enter__ = lambda s: s
+        resp.__exit__ = lambda s, *a: None
+        return resp
 
-    monkeypatch.setattr("canopy.fill.llm", MagicMock(call_minimax=fake_llm))
-    monkeypatch.setattr("canopy.fill.bws", MagicMock(fetch_secret=lambda _id: "k"))
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("canopy.bws.fetch_secret", lambda _id: "k")
 
     result = fill_missing(missing, {}, batch_size=2, max_words=15,
                           base_url="https://x.test", model="m", secret_id="uuid")
@@ -110,12 +121,22 @@ def test_fill_missing_batches_and_merges_results(monkeypatch: pytest.MonkeyPatch
 def test_fill_missing_falls_back_to_regex_on_bad_json(monkeypatch: pytest.MonkeyPatch) -> None:
     """Model returns malformed JSON → regex extracts individual entries."""
     missing = [("a.py", "file"), ("b.py", "file")]
-    monkeypatch.setattr("canopy.fill.llm", MagicMock(call_minimax=lambda prompt, **_: (
-        'I cannot produce JSON.\n'
-        '"a.py": "alpha description"\n'
-        '"b.py": "bravo description"\n'
-    )))
-    monkeypatch.setattr("canopy.fill.bws", MagicMock(fetch_secret=lambda _id: "k"))
+
+    def fake_urlopen(req, timeout=None):
+        resp = MagicMock()
+        resp.read.return_value = json.dumps({
+            "content": [{"type": "text", "text":
+                'I cannot produce JSON.\n'
+                '"a.py": "alpha description"\n'
+                '"b.py": "bravo description"\n'
+            }]
+        }).encode()
+        resp.__enter__ = lambda s: s
+        resp.__exit__ = lambda s, *a: None
+        return resp
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("canopy.bws.fetch_secret", lambda _id: "k")
 
     result = fill_missing(missing, {}, batch_size=50, max_words=15,
                           base_url="https://x.test", model="m", secret_id="uuid")
@@ -125,8 +146,18 @@ def test_fill_missing_falls_back_to_regex_on_bad_json(monkeypatch: pytest.Monkey
 def test_fill_missing_skips_missing_paths_in_response(monkeypatch: pytest.MonkeyPatch) -> None:
     """If LLM returns JSON missing some paths, only present ones are recorded."""
     missing = [("a.py", "file"), ("b.py", "file"), ("c.py", "file")]
-    monkeypatch.setattr("canopy.fill.llm", MagicMock(call_minimax=lambda prompt, **_: '{"a.py": "alpha"}'))
-    monkeypatch.setattr("canopy.fill.bws", MagicMock(fetch_secret=lambda _id: "k"))
+
+    def fake_urlopen(req, timeout=None):
+        resp = MagicMock()
+        resp.read.return_value = json.dumps({
+            "content": [{"type": "text", "text": '{"a.py": "alpha"}'}]
+        }).encode()
+        resp.__enter__ = lambda s: s
+        resp.__exit__ = lambda s, *a: None
+        return resp
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("canopy.bws.fetch_secret", lambda _id: "k")
     result = fill_missing(missing, {}, batch_size=50, max_words=15,
                           base_url="https://x.test", model="m", secret_id="uuid")
     assert result == {"a.py": "alpha"}
@@ -135,8 +166,18 @@ def test_fill_missing_skips_missing_paths_in_response(monkeypatch: pytest.Monkey
 def test_fill_missing_truncates_long_descriptions(monkeypatch: pytest.MonkeyPatch) -> None:
     missing = [("a.py", "file")]
     long = "x" * 500
-    monkeypatch.setattr("canopy.fill.llm", MagicMock(call_minimax=lambda *a, **kw: json.dumps({"a.py": long})))
-    monkeypatch.setattr("canopy.fill.bws", MagicMock(fetch_secret=lambda _id: "k"))
+
+    def fake_urlopen(req, timeout=None):
+        resp = MagicMock()
+        resp.read.return_value = json.dumps({
+            "content": [{"type": "text", "text": json.dumps({"a.py": long})}]
+        }).encode()
+        resp.__enter__ = lambda s: s
+        resp.__exit__ = lambda s, *a: None
+        return resp
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("canopy.bws.fetch_secret", lambda _id: "k")
     result = fill_missing(missing, {}, batch_size=50, max_words=15,
                           base_url="https://x.test", model="m", secret_id="uuid")
     assert len(result["a.py"]) == 200  # hard cap
@@ -145,8 +186,17 @@ def test_fill_missing_truncates_long_descriptions(monkeypatch: pytest.MonkeyPatc
 def test_fill_missing_empty_input_returns_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     """No missing paths → no LLM calls."""
     calls = []
-    monkeypatch.setattr("canopy.fill.llm", MagicMock(call_minimax=lambda *a, **kw: (calls.append(1), "{}")[1]))
-    monkeypatch.setattr("canopy.fill.bws", MagicMock(fetch_secret=lambda _id: "k"))
+
+    def fake_urlopen(req, timeout=None):
+        calls.append(1)
+        resp = MagicMock()
+        resp.read.return_value = b'{"content": []}'
+        resp.__enter__ = lambda s: s
+        resp.__exit__ = lambda s, *a: None
+        return resp
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("canopy.bws.fetch_secret", lambda _id: "k")
     result = fill_missing([], {}, batch_size=50, max_words=15,
                           base_url="https://x.test", model="m", secret_id="uuid")
     assert result == {}
@@ -190,8 +240,7 @@ def test_cli_fill_dry_run_does_not_modify_yaml(tmp_path: Path) -> None:
 
     fake_results = {"src/main.py": "entry point"}
     with patch("canopy.fill.fill_missing", return_value=fake_results) as mock_fill, \
-         patch("canopy.fill.llm", MagicMock()), \
-         patch("canopy.fill.bws", MagicMock()):
+         patch("canopy.providers.AnthropicProvider.complete", return_value='{"src/main.py": "entry point"}'):
         rc = main(["--root", str(tmp_path), "fill", "--dry-run"])
 
     assert rc == 0
@@ -212,8 +261,7 @@ def test_cli_fill_writes_yaml_when_not_dry_run(tmp_path: Path) -> None:
 
     fake_results = {"src/main.py": "entry point"}
     with patch("canopy.fill.fill_missing", return_value=fake_results), \
-         patch("canopy.fill.llm", MagicMock()), \
-         patch("canopy.fill.bws", MagicMock()):
+         patch("canopy.providers.AnthropicProvider.complete", return_value='{"src/main.py": "entry point"}'):
         rc = main(["--root", str(tmp_path), "fill"])
 
     assert rc == 0
@@ -230,8 +278,7 @@ def test_cli_fill_retain_hindsight_called_when_flag_set(tmp_path: Path) -> None:
 
     fake_results = {"src/main.py": "entry point"}
     with patch("canopy.fill.fill_missing", return_value=fake_results), \
-         patch("canopy.fill.llm", MagicMock()), \
-         patch("canopy.fill.bws", MagicMock()), \
+         patch("canopy.providers.AnthropicProvider.complete", return_value='{"src/main.py": "entry point"}'), \
          patch("canopy.hindsight.retain", return_value=True) as mock_retain:
         rc = main(["--root", str(tmp_path), "fill", "--retain-hindsight"])
 

@@ -1,18 +1,20 @@
-"""LLM client for the MiniMax / Anthropic-compatible API.
+"""Thin wrapper around `AnthropicProvider` for v0.1.0 callers.
 
-Wraps a single POST to `{base_url}/v1/messages`. No batching, no JSON
-parsing — those live in `canopy.fill`. Keeping this module small makes
-it trivially mockable and reusable for non-fill use cases.
+Phase 3 introduced `canopy.providers` with a proper Provider abstraction.
+`call_minimax` is preserved here so v0.1.0 / v0.2.0 callers keep working.
+New code should use `AnthropicProvider` (or `OpenAIProvider`) directly.
 """
 from __future__ import annotations
 
-import json
-import urllib.error
-import urllib.request
+from canopy.providers import AnthropicProvider, ProviderError
 
 
-class LlmError(RuntimeError):
-    """Raised when the LLM call fails (HTTP error, network error, etc.)."""
+# Re-export the exception under the old name so existing imports keep working.
+__all__ = ["call_minimax", "LlmError"]
+
+
+class LlmError(ProviderError):
+    """Deprecated alias for `canopy.providers.ProviderError`."""
 
 
 def call_minimax(
@@ -25,37 +27,16 @@ def call_minimax(
     max_tokens: int = 2048,
     timeout: int = 60,
 ) -> str:
-    """Call the Anthropic-compatible messages API.
+    """Call the Anthropic-compatible messages API. Preserved for back-compat.
 
-    Returns the concatenated text from the response's `content` blocks.
-    Raises `LlmError` on any HTTP / network failure.
+    New code should construct `canopy.providers.AnthropicProvider(...)`
+    and call `.complete(system, user)`.
     """
-    messages = [{"role": "user", "content": user_prompt}]
-    body: dict = {"model": model, "max_tokens": max_tokens, "messages": messages}
-    if system is not None:
-        body["system"] = system
-
-    req = urllib.request.Request(
-        f"{base_url.rstrip('/')}/v1/messages",
-        data=json.dumps(body).encode(),
-        headers={
-            "content-type": "application/json",
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-        },
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            payload = json.loads(resp.read())
-    except urllib.error.HTTPError as e:
-        raise LlmError(f"HTTP {e.code}: {e.reason}") from e
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as e:
-        raise LlmError(f"LLM call failed: {e}") from e
-
-    text = "".join(
-        block.get("text", "")
-        for block in payload.get("content", [])
-        if isinstance(block, dict) and block.get("type") == "text"
-    )
-    return text
+    # max_tokens is accepted for back-compat; AnthropicProvider uses 2048.
+    del max_tokens
+    return AnthropicProvider(
+        api_key=api_key,
+        base_url=base_url,
+        model=model,
+        timeout=timeout,
+    ).complete(system=system or "", user=user_prompt)

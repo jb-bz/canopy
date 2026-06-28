@@ -71,6 +71,7 @@ def fill_missing(
     secret_id: str,
     max_words: int,
     batch_size: int,
+    provider: str = "anthropic",
 ) -> dict[str, str]:
     """Fill missing descriptions via the LLM. Returns {path: description}.
 
@@ -82,6 +83,9 @@ def fill_missing(
     - Fetches the API key from bws ONCE upfront (fail fast if bws is broken).
     - Builds the context once.
     - Calls the LLM in batches of `batch_size`, accumulating results.
+
+    `provider` (Phase 3): 'anthropic' (default) or 'openai'. Selects which
+    adapter from `canopy.providers` is used.
     """
     if not missing:
         return {}
@@ -95,6 +99,17 @@ def fill_missing(
         f"(max {max_words} words). Output ONLY valid JSON mapping path -> description."
     )
 
+    # Phase 3: pick the right provider. Default to Anthropic for back-compat.
+    from canopy.providers import (
+        AnthropicProvider,
+        OpenAIProvider,
+        ProviderError,
+    )
+    if provider == "openai":
+        prov = OpenAIProvider(api_key=api_key, base_url=base_url, model=model)
+    else:
+        prov = AnthropicProvider(api_key=api_key, base_url=base_url, model=model)
+
     results: dict[str, str] = {}
     for i in range(0, len(missing), batch_size):
         batch = missing[i : i + batch_size]
@@ -104,13 +119,10 @@ def fill_missing(
             f"Describe each path below:\n{paths_text}\n\n"
             f"Return JSON object only. Max {max_words} words per description."
         )
-        text = llm.call_minimax(
-            user_prompt,
-            api_key=api_key,
-            base_url=base_url,
-            model=model,
-            system=system_prompt,
-        )
+        try:
+            text = prov.complete(system=system_prompt, user=user_prompt)
+        except ProviderError:
+            raise
         results.update(_parse_response(text, batch))
 
     return results

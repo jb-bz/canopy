@@ -233,6 +233,7 @@ def cmd_fill(args: argparse.Namespace) -> int:
             secret_id=args.bws_secret,
             max_words=args.max_words,
             batch_size=args.batch,
+            provider=getattr(args, "provider", "anthropic"),
         )
     except (_bws.BwsError, _fill.llm.LlmError) as e:
         print(f"fill failed: {e}", file=sys.stderr)
@@ -313,7 +314,40 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--retain-hindsight", action="store_true", help="log fill results to Hindsight (silent on failure)")
     s.set_defaults(fn=cmd_fill)
 
+    # setup subcommand (Phase 3): interactive or non-interactive first-run config.
+    s = sp.add_parser("setup", help="configure provider, model, and MCP client (interactive)")
+    s.add_argument("--non-interactive", action="store_true",
+                   help="read all settings from flags; no prompts (for CI/dotfiles)")
+    s.add_argument("--provider", choices=("anthropic", "openai"),
+                   help="LLM provider: 'anthropic' (Messages API) or 'openai' (Chat Completions)")
+    s.add_argument("--model", help="model name (default depends on provider)")
+    s.add_argument("--base-url", help="API base URL (default depends on provider)")
+    s.add_argument("--client", default="claude-code",
+                   help="MCP client name; any non-built-in prints setup docs")
+    s.add_argument("--api-key", help="API key (or leave empty)")
+    s.add_argument("--project-root", default=".", help="where to write the config (default cwd)")
+    s.add_argument("--global-config", action="store_true",
+                   help="write to the user's home dir instead of project-local")
+    s.add_argument("--global-config-dir", help=argparse.SUPPRESS)  # for testing
+    s.set_defaults(fn=cmd_setup)
+
     return p
+
+
+def cmd_setup(args: argparse.Namespace) -> int:
+    """Delegate to canopy.setup.main with the parsed args."""
+    from canopy import setup
+    argv: list[str] = []
+    if getattr(args, "non_interactive", False):
+        argv.append("--non-interactive")
+    for flag in ("provider", "model", "base_url", "client", "api_key",
+                 "project_root", "global_config_dir"):
+        val = getattr(args, flag, None)
+        if val:
+            argv.extend([f"--{flag.replace('_', '-')}", val])
+    if getattr(args, "global_config", False):
+        argv.append("--global-config")
+    return setup.main(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
